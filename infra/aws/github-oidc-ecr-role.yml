@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GitHub Actions OIDC role for building dbt images and pushing them to Amazon ECR.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Description: GitHub organization or user name.
+  GitHubRepo:
+    Type: String
+    Description: GitHub repository name.
+  EcrRepositoryName:
+    Type: String
+    Default: dbt-demo
+    Description: ECR repository the workflow can create and push to.
+  RoleName:
+    Type: String
+    Default: github-actions-dbt-ecr
+    Description: IAM role name for GitHub Actions.
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOwner}/${GitHubRepo}:*
+      Policies:
+        - PolicyName: ecr-build-and-push
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: EcrAuth
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Sid: EcrRepositoryAccess
+                Effect: Allow
+                Action:
+                  - ecr:CreateRepository
+                  - ecr:DescribeRepositories
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryName}
+
+Outputs:
+  RoleArn:
+    Description: Add this value to GitHub secret AWS_ROLE_TO_ASSUME.
+    Value: !GetAtt GitHubActionsRole.Arn

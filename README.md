@@ -116,6 +116,17 @@ GitHub Repository Secrets:
 - `OPENSHIFT_SERVER_URL`，可选，只有部署到 OpenShift 时需要
 - `OPENSHIFT_TOKEN`，可选，只有部署到 OpenShift 时需要
 
+可以用内置 CloudFormation 模板创建 IAM role：
+
+```bash
+export GITHUB_OWNER=isstephen
+export GITHUB_REPO=dbt-project
+source .env
+./scripts/create-github-aws-role.sh
+```
+
+脚本输出的 role ARN 放到 GitHub Secret `AWS_ROLE_TO_ASSUME`。
+
 IAM role trust policy 需要允许当前 GitHub repo 使用 OIDC：
 
 ```json
