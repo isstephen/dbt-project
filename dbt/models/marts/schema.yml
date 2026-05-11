@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: fct_daily_orders
+    description: Daily order volume and revenue metrics.
+    columns:
+      - name: order_date
+        tests:
+          - not_null
+          - unique
+      - name: order_count
+        tests:
+          - not_null
+      - name: gross_revenue
+        tests:
+          - not_null

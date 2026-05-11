@@ -1,0 +1,14 @@
+dbt_demo:
+  target: "{{ env_var('DBT_TARGET', 'prod') }}"
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('DB_HOST') }}"
+      port: "{{ env_var('DB_PORT', '5432') | int }}"
+      dbname: "{{ env_var('DB_NAME') }}"
+      schema: "{{ env_var('DB_SCHEMA') }}"
+      user: "{{ env_var('DB_USER') }}"
+      pass: "{{ env_var('DB_PASSWORD') }}"
+      threads: "{{ env_var('DB_THREADS', '4') | int }}"
+      connect_timeout: 30
+      keepalives_idle: 0

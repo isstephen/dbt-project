@@ -1,0 +1,7 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: analytics-dbt
+  labels:
+    app.kubernetes.io/name: dbt-demo
+    app.kubernetes.io/part-of: analytics-platform
