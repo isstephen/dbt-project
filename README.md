@@ -1,14 +1,28 @@
-# dbt on OpenShift with ECR Demo
+# dbt + Redshift on OpenShift with ECR Demo
 
-这个 demo 展示一个企业级 dbt 批处理部署方式：
+这个 demo 展示一个企业级 dbt data transformation 部署方式：
 
 - dbt 项目代码打进不可变镜像
+- dbt 使用 `dbt-redshift` 连接 Amazon Redshift
+- `dbt build` 在 Redshift 里执行 seed、staging、mart transformation 和 tests
 - 镜像推送到 AWS ECR
 - OpenShift 用 `CronJob` 定时执行 `dbt build`
-- 数据库密码、ECR 拉取凭证全部放到 Kubernetes/OpenShift `Secret`
+- Redshift 密码、ECR 拉取凭证全部放到 Kubernetes/OpenShift `Secret`
 - 容器默认非 root、只读根文件系统、资源限制、NetworkPolicy、RBAC 最小化
 
-> 默认示例运行在 `OpenShift` 上。如果企业里用 Snowflake、Redshift、BigQuery 或 Databricks，只需要替换 `requirements.txt` 里的 adapter，并调整 `dbt/profiles.yml` 与对应 Secret 字段。
+> 默认示例是 `dbt + Redshift`，运行平台是 OpenShift，镜像仓库是 ECR。如果企业里改用 Snowflake、BigQuery 或 Databricks，需要替换 `requirements.txt` 里的 adapter，并调整 `dbt/profiles.yml` 与对应 Secret 字段。
+
+## Transformation 流程
+
+```text
+dbt/seeds/raw_orders.csv
+  -> dbt seed creates raw_orders in Redshift
+  -> dbt/models/staging/stg_orders.sql cleans and casts raw order data
+  -> dbt/models/marts/fct_daily_orders.sql aggregates daily revenue metrics
+  -> dbt tests validate keys, not-null fields, and accepted status values
+```
+
+生产环境里通常不会用 seed 当 raw layer，而是由 ingestion 工具把数据落到 Redshift raw schema。这个 demo 用 seed 是为了让面试和演示时能端到端跑通 transformation。
 
 ## 目录
 
@@ -27,7 +41,7 @@
 - AWS CLI 已登录到目标 AWS 账号
 - `docker` 或兼容的容器构建工具可用
 - `oc` 已登录到目标 OpenShift 集群
-- 目标数据库可从 OpenShift namespace 访问
+- Redshift cluster 或 Redshift Serverless workgroup 可从 OpenShift namespace 访问
 
 ## 1. 配置环境变量
 
@@ -41,7 +55,7 @@ cp .env.example .env
 
 ## 2. 创建 OpenShift Secret
 
-数据库凭证：
+Redshift 凭证：
 
 ```bash
 source .env
@@ -97,6 +111,8 @@ oc -n "${OPENSHIFT_NAMESPACE}" create job --from=cronjob/dbt-demo dbt-demo-manua
 ```bash
 oc -n "${OPENSHIFT_NAMESPACE}" logs -l app.kubernetes.io/name=dbt-demo --tail=200
 ```
+
+成功时日志里会看到 `raw_orders` seed、`stg_orders` model、`fct_daily_orders` model 和 tests 通过。核心结果表是 Redshift 里的 `${REDSHIFT_SCHEMA}.fct_daily_orders`。
 
 ## 5. 从 GitHub Actions 推送到 AWS ECR
 
@@ -168,22 +184,24 @@ IAM role trust policy 需要允许当前 GitHub repo 使用 OIDC：
 `dbt/profiles.yml` 只引用环境变量，不写明文密码：
 
 - `DBT_TARGET`
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_SCHEMA`
-- `DB_USER`
-- `DB_PASSWORD`
+- `REDSHIFT_HOST`
+- `REDSHIFT_PORT`
+- `REDSHIFT_DATABASE`
+- `REDSHIFT_SCHEMA`
+- `REDSHIFT_USER`
+- `REDSHIFT_PASSWORD`
+- `REDSHIFT_SSLMODE`
 - `DB_THREADS`
 
-OpenShift `CronJob` 使用 `envFrom.secretRef` 从 `dbt-demo-db` 注入这些变量。
+OpenShift `CronJob` 使用 `envFrom.secretRef` 从 `dbt-demo-redshift` 注入这些变量。
 
 ECR 拉取凭证放在 `dbt-demo-ecr-pull`，并通过 `ServiceAccount.imagePullSecrets` 绑定。
 
 ## 企业化建议
 
 - 用 GitHub Actions、Jenkins、Tekton 或 Argo CD 管理构建和部署。
-- 用 External Secrets Operator 从 AWS Secrets Manager 或 Vault 同步数据库密码。
+- 用 External Secrets Operator 从 AWS Secrets Manager 或 Vault 同步 Redshift 密码。
+- Redshift 建议使用独立 dbt service user，并只授予目标 database/schema 需要的权限。
 - ECR pull secret 建议由平台层自动刷新。
 - 生产环境使用不可变标签，例如 Git SHA，不要用 `latest`。
 - 为每个环境维护独立 namespace、Secret、镜像标签和 dbt target。

@@ -35,7 +35,7 @@ spec:
               imagePullPolicy: IfNotPresent
               envFrom:
                 - secretRef:
-                    name: dbt-demo-db
+                    name: dbt-demo-redshift
               env:
                 - name: DBT_PROFILES_DIR
                   value: /app/dbt

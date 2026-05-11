@@ -2,13 +2,14 @@ dbt_demo:
   target: "{{ env_var('DBT_TARGET', 'prod') }}"
   outputs:
     prod:
-      type: postgres
-      host: "{{ env_var('DB_HOST') }}"
-      port: "{{ env_var('DB_PORT', '5432') | int }}"
-      dbname: "{{ env_var('DB_NAME') }}"
-      schema: "{{ env_var('DB_SCHEMA') }}"
-      user: "{{ env_var('DB_USER') }}"
-      pass: "{{ env_var('DB_PASSWORD') }}"
+      type: redshift
+      host: "{{ env_var('REDSHIFT_HOST') }}"
+      port: "{{ env_var('REDSHIFT_PORT', '5439') | int }}"
+      dbname: "{{ env_var('REDSHIFT_DATABASE') }}"
+      schema: "{{ env_var('REDSHIFT_SCHEMA') }}"
+      user: "{{ env_var('REDSHIFT_USER') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD') }}"
       threads: "{{ env_var('DB_THREADS', '4') | int }}"
+      sslmode: "{{ env_var('REDSHIFT_SSLMODE', 'require') }}"
       connect_timeout: 30
       keepalives_idle: 0

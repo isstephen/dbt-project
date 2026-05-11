@@ -27,7 +27,7 @@ fi
 
 docker build \
   --label org.opencontainers.image.source="dbt-openshift-ecr-demo" \
-  --label org.opencontainers.image.description="dbt demo runtime for OpenShift" \
+  --label org.opencontainers.image.description="dbt Redshift demo runtime for OpenShift" \
   -t "${IMAGE_URI}" \
   .
 
